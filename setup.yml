@@ -1,0 +1,81 @@
+- hosts: 192.168.0.107
+  vars:
+  - document_root: "/var/www/webpages/"
+  - listen_port: "8080"
+  - mount_point: "/dvd1"
+  - conf_file: "/etc/httpd/conf.d/config.conf"
+  - endpoint: "{{  ansible_facts['default_ipv4']['address']  }}"
+  tasks:
+  - name: "Copy ISO file from CN to MN"
+    copy:
+      src: "/root/rhel-8.0-x86_64-dvd.iso"
+      dest: "/RHEL-8-packages"
+
+  - name: "Create a directory for mount point"
+    file:
+      path: "{{  mount_point  }}"
+      state: directory
+
+  - name: "Mount the ISO file to the directory created"
+    mount:
+      path: "{{  mount_point  }}"
+      src: "/RHEL-8-packages"
+      fstype: "iso9660"
+      state: mounted
+
+  - name: "Configure yum for AppStream"
+    yum_repository:
+      name: "AppStream"
+      description: "Yum repo for Appstream"
+      baseurl: "file://{{  mount_point  }}/AppStream"
+      enabled: yes
+      gpgcheck: no
+
+      
+  - name: "Configure yum for BaseOS"
+    yum_repository:
+      name: "BaseOS"
+      description: "Yum repo for BaseOS"
+      baseurl: "file://{{  mount_point  }}/BaseOS"
+      enabled: yes
+      gpgcheck: no
+
+  - name: "Install Apache Webserver"
+    package:
+      name: "httpd"
+      state: present
+
+  - name: "Create Document Root"
+    file:
+      path: "{{  document_root  }}"
+      state: directory
+  
+  - name: "Copy Webpages"
+    copy:
+      dest: "{{  document_root  }}/index.html"
+      content: "This is a test page"
+
+  - name: "Configure Apache"
+    template:
+      dest: "{{  conf_file  }}"
+      src: "config.txt"
+    notify:
+      - "Restart Service"
+  
+  - name: "Add Firewall Rule"
+    firewalld:
+      port: "{{  listen_port  }}/tcp"
+      state: enabled
+      permanent: yes
+      immediate: yes
+
+  - name: "Start the Service"
+    service:
+      name: "httpd"
+      state: started
+
+  handlers:
+  - name: "Restart Service"
+    service:
+      name: "httpd"
+      state: restarted

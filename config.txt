@@ -1,0 +1,5 @@
+Listen {{   listen_port  }}
+
+<VirtualHost {{  endpoint  }}:{{   listen_port  }}>
+DocumentRoot "{{  document_root  }}"
+</VirtualHost>
